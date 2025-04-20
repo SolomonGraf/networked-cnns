@@ -51,8 +51,8 @@ class JellyBeanGenerator:
     ) -> None:
         """Draw a single jellybean (ellipse with highlights)"""
         width, height = self.image_size
-        bean_width = random.randint(int(width*0.03), int(width*0.07))
-        bean_height = random.randint(int(height*0.04), int(height*0.09))
+        bean_width = random.randint(int(width*0.015), int(width*0.035))
+        bean_height = random.randint(int(height*0.02), int(height*0.045))
         
         # Apply size variation
         bean_width = int(bean_width * (1 + random.uniform(-size_variation, size_variation)))
@@ -142,13 +142,13 @@ class JellyBeanGenerator:
         annotation_file = open(os.path.join(self.output_dir, "annotations.txt"), "w")
         
         print("Generating positive images")
-        for i in tqdm(range(num_images // 2)):
+        for i in tqdm(range(80 * num_images // 100)):
             filename = f"{prefix}_{i:03d}.png"
             _, count = self.generate_image(filename=filename)
             annotation_file.write(f"{filename}\t{count}\n")
 
         print("Generative negative images")
-        for i in range(num_images // 2):
+        for i in tqdm(range(20 * num_images // 100)):
             filename = f"{prefix}_{(i + num_images // 2):03d}.png"
             _, count = self.generate_image(num_jellybeans=0, filename=filename)
             annotation_file.write(f"{filename}\t{count}\n")
@@ -159,8 +159,8 @@ class JellyBeanGenerator:
 if __name__ == "__main__":
     generator = JellyBeanGenerator(
         image_size=(512, 512),
-        min_jellybeans=10,
-        max_jellybeans=30,
+        min_jellybeans=100,
+        max_jellybeans=500,
         output_dir="jellybeans_dataset"
     )
 

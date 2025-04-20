@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 
 class Trainer:
-    def __init__(self, agent, train_loader, test_loader, epochs=50, patience=5):
+    def __init__(self, agent, train_loader, test_loader, epochs=5, patience=5):
         self.agent = agent
         self.train_loader = train_loader
         self.test_loader = test_loader
@@ -62,7 +62,7 @@ class Trainer:
             if val_loss < self.best_loss:
                 self.best_loss = val_loss
                 self.counter = 0
-                self.agent.save_model("best_model.pth")
+                self.agent.save_model()
             else:
                 self.counter += 1
                 if self.counter >= self.patience:

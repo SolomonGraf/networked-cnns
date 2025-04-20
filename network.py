@@ -1,4 +1,5 @@
-from agent import Agent
+import os
+from tqdm import tqdm
 
 class Network:
     """__init__
@@ -9,8 +10,8 @@ class Network:
     Return: returns object
     """
 
-    def __init__(self, n, d):
-        self.agents = [Agent(i) for i in range(n)]
+    def __init__(self, n, d, base):
+        self.agents = [base.copy(i, os.path.join("models", str(i) + ".pth")) for i in tqdm(range(n), desc="Populating Models")]
         self.size = n
         assert d % 2 == 0
         self.deg = d
