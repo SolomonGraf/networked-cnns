@@ -68,6 +68,7 @@ class Agent:
     
     def random_train(self):
         dir = "random_train"
+        shutil.rmtree(dir, ignore_errors=True)
         os.mkdir(dir)
 
         generator = JellyBeanGenerator(
@@ -78,7 +79,7 @@ class Agent:
         )
         generator.generate_dataset(100)
 
-        batch_size = 32
+        batch_size = 10
         train_loader, test_loader = Preprocessor.get_dataloaders(dir, "annotations.txt", batch_size)
         trainer = Trainer(self, train_loader, test_loader, epochs=1)
         trainer.train()
@@ -90,4 +91,6 @@ class Agent:
         return
     
     def copy(self, id, path):
-        return Agent(path = path, device=self.device, id=id)
+        a = Agent(path = self.path, device=self.device, id=id)
+        a.path = path
+        return a

@@ -149,7 +149,7 @@ class JellyBeanGenerator:
 
         print("Generative negative images")
         for i in tqdm(range(20 * num_images // 100)):
-            filename = f"{prefix}_{(i + num_images // 2):03d}.png"
+            filename = f"{prefix}_{(i + (80 * num_images // 100)):03d}.png"
             _, count = self.generate_image(num_jellybeans=0, filename=filename)
             annotation_file.write(f"{filename}\t{count}\n")
         
