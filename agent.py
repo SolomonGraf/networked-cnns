@@ -1,96 +1,155 @@
-import torch
+import torch, os
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from PIL import Image
-from preprocessor import Preprocessor
+from tqdm import tqdm
+import torch.optim as optim
+import torchvision.transforms as transforms
 from image_generator import JellyBeanGenerator
-import os, shutil
-from trainer import Trainer
+from PIL import Image
 
-class EllipseCounter(nn.Module):
+class EllipseCounterCNN(nn.Module):
     def __init__(self):
-        super(EllipseCounter, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
-        
-        # After 4 pooling layers of stride 2, the 512x512 image becomes 32x32
-        # (512 / 2^4 = 32)
-        # Final conv output is 256 channels of 32x32
-        self.fc1 = nn.Linear(256 * 32 * 32, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, 1)
-        
-        self.dropout = nn.Dropout(0.5)
-    
+        super(EllipseCounterCNN, self).__init__()
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1),  # 512x512 → 512x512
+            nn.ReLU(),
+            nn.MaxPool2d(2),                                      # 512x512 → 256x256
+            nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1), # 256x256 → 256x256
+            nn.ReLU(),
+            nn.MaxPool2d(2),                                      # 256x256 → 128x128
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1), # 128x128 → 128x128
+            nn.ReLU(),
+            nn.MaxPool2d(2)                                       # 128x128 → 64x64
+        )
+        self.fc_layers = nn.Sequential(
+            nn.Linear(64 * 64 * 64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
+           )   # Regression output (ellipse count)
+
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))  # 256x256
-        x = self.pool(F.relu(self.conv2(x)))  # 128x128
-        x = self.pool(F.relu(self.conv3(x)))  # 64x64
-        x = self.pool(F.relu(self.conv4(x)))  # 32x32
-        
-        x = x.view(-1, 256 * 32 * 32)  # Flatten
-        x = self.dropout(x)
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)  # Flatten
+        x = self.fc_layers(x)
         return x
 
 class Agent:
-    def __init__(self, path, id, learning_rate=0.001, device='cuda' if torch.cuda.is_available() else 'cpu'):
-        self.device = device
+    def __init__(self, path):
         self.path = path
-        self.model = EllipseCounter().to(self.device)
-        self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.id = id
-        if os.path.isfile(self.path):
-            self.model.load_state_dict(torch.load(self.path))
-    
-    def save_model(self):
-        torch.save(self.model.state_dict(), self.path)
+        self.model = EllipseCounterCNN()
+        self.criterion = nn.MSELoss()  # Mean Squared Error for regression
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model.to(self.device)
 
-    def eval(self, img_path):
-        image = Image.open(img_path).convert('L')  # Convert to grayscale
-        image = np.array(image, dtype=np.float32) / 255.0  # Normalize
-        image = np.expand_dims(image, axis=0)  # Add batch and channel dims (1, 1, H, W)
-        image = torch.from_numpy(image).unsqueeze(0)  # Convert to tensor
-        image = image.to(self.device)
-        self.model.eval()
-        with torch.no_grad():
-            prediction = self.model(image).item()
-        return prediction
-    
-    def random_train(self):
-        dir = "random_train"
-        shutil.rmtree(dir, ignore_errors=True)
-        os.mkdir(dir)
-
-        generator = JellyBeanGenerator(
-            image_size=(512, 512),
-            min_jellybeans=100,
-            max_jellybeans=500,
-            output_dir=dir
-        )
-        generator.generate_dataset(100)
-
-        batch_size = 10
-        train_loader, test_loader = Preprocessor.get_dataloaders(dir, "annotations.txt", batch_size)
-        trainer = Trainer(self, train_loader, test_loader, epochs=1)
-        trainer.train()
-
-        shutil.rmtree(dir, ignore_errors=True)
-
-    def train(self, img_path, count):
+    def train_epoch(self, train_loader):
         self.model.train()
-        return
+        running_loss = 0.0
+        
+        for images, counts in tqdm(train_loader, desc="Training"):
+            images = images.to(self.device)
+            counts = counts.to(self.device).unsqueeze(1)
+            
+            self.optimizer.zero_grad()
+            
+            outputs = self.model(images)
+            loss = self.criterion(outputs, counts)
+            
+            loss.backward()
+            self.optimizer.step()
+            
+            running_loss += loss.item() * images.size(0)
+        
+        epoch_loss = running_loss / len(train_loader.dataset)
+        return epoch_loss
     
-    def copy(self, id, path):
-        a = Agent(path = self.path, device=self.device, id=id)
-        a.path = path
-        return a
+    def validate(self, test_loader):
+        self.model.eval()
+        running_loss = 0.0
+        
+        with torch.no_grad():
+            for images, counts in tqdm(test_loader, desc="Validating"):
+                images = images.to(self.device)
+                counts = counts.to(self.device).unsqueeze(1)
+                
+                outputs = self.model(images)
+                loss = self.criterion(outputs, counts)
+                
+                running_loss += loss.item() * images.size(0)
+        
+        epoch_loss = running_loss / len(test_loader.dataset)
+        return epoch_loss
+    
+    def train(self, train_loader, test_loader, epochs = 10):
+        counter = 0
+        patience = 2
+        best_loss = float('inf')
+
+        for epoch in range(epochs):
+            print(f"\nEpoch {epoch + 1}/{epochs}")
+            
+            train_loss = self.train_epoch(train_loader)
+            val_loss = self.validate(test_loader)
+            
+            
+            print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+            
+            # Early stopping
+            if val_loss < best_loss:
+                best_loss = val_loss
+                counter = 0
+                self.save()
+            else:
+                counter += 1
+                if counter >= patience:
+                    (f"Early stopping after {epoch + 1} epochs")
+                    break
+
+    def random_train(self, epochs=5, batch_size=4):
+        temp_dir = "temp_random_data"
+        gen = JellyBeanGenerator(output_dir=temp_dir)
+        gen.generate_dataset(100)
+        self.train(temp_dir, epochs, batch_size)
+
+    def load(self):
+        path = self.path
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Model file {path} does not exist.")
+        try:
+            checkpoint = torch.load(path, map_location=self.device)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            if 'optimizer_state_dict' in checkpoint:
+                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.model.to(self.device)
+            print(f"Model loaded successfully from {path}")
+        except Exception as e:
+            raise RuntimeError(f"Failed to load model: {str(e)}")
+
+    def save(self):
+        path = self.path
+        """Save model and optimizer states to a .pth file."""
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }, path)
+        print(f"Model saved successfully to {path}")
+
+    def reinforce(self, image, count, epochs=1):
+        """Fine-tunes the model on a single annotated image."""
+        self.model.train()
+        image = transforms.ToTensor()(image).unsqueeze(0).to(self.device)  # Add batch dim
+        count = torch.tensor([count], dtype=torch.float32).to(self.device)
+        
+        for _ in range(epochs):
+            self.optimizer.zero_grad()
+            output = self.model(image)
+            loss = self.criterion(output.squeeze(), count)
+            loss.backward()
+            self.optimizer.step()
+
+    def eval(self, image_path):
+        self.model.eval()
+        image = Image.open(image_path).convert("L")
+        image = transforms.ToTensor()(image).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            output = self.model(image)
+        return round(output.item())  # Round to nearest integer (count)

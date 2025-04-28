@@ -3,8 +3,8 @@ from dataset import EllipseDataset
 
 class Preprocessor:
     @staticmethod
-    def get_dataloaders(image_folder, annotation_file, batch_size=32, train_ratio=0.8):
-        full_dataset = EllipseDataset(image_folder, annotation_file)
+    def get_dataloaders(image_folder, batch_size=32, train_ratio=0.8):
+        full_dataset = EllipseDataset(image_folder)
         
         # Split dataset
         train_size = int(train_ratio * len(full_dataset))

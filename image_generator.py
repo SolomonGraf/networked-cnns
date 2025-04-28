@@ -3,6 +3,7 @@ import random
 import os
 from typing import Tuple, Optional
 from tqdm import tqdm
+import json
 
 class JellyBeanGenerator:
     def __init__(
@@ -139,21 +140,33 @@ class JellyBeanGenerator:
             num_images: Number of images to generate
             prefix: Filename prefix
         """
-        annotation_file = open(os.path.join(self.output_dir, "annotations.txt"), "w")
+        annotation_fp = os.path.join(self.output_dir, "annotations.json")
+        annotations = dict()
         
         print("Generating positive images")
         for i in tqdm(range(80 * num_images // 100)):
             filename = f"{prefix}_{i:03d}.png"
             _, count = self.generate_image(filename=filename)
-            annotation_file.write(f"{filename}\t{count}\n")
+            annotations[filename] = count
 
         print("Generative negative images")
         for i in tqdm(range(20 * num_images // 100)):
             filename = f"{prefix}_{(i + (80 * num_images // 100)):03d}.png"
             _, count = self.generate_image(num_jellybeans=0, filename=filename)
-            annotation_file.write(f"{filename}\t{count}\n")
+            annotations[filename] = count
         
-        annotation_file.close()
+        with open(annotation_fp, "w") as file:
+            json.dump(annotations, file)
+    
+    def randomize_dataset(self, num_images, dataset):
+        for name in list(dataset.annotations.keys())[0:min(num_images, len(dataset.annotations.keys()))]:
+            _, count = self.generate_image(filename=name)
+            dataset.annotations[name] = count
+
+        annotation_fp = os.path.join(self.output_dir, "annotations.json")
+        
+        with open(annotation_fp, "w") as file:
+            json.dump(dataset.annotations, file)  
 
 # Example usage
 if __name__ == "__main__":
