@@ -1,6 +1,7 @@
 from preprocessor import Preprocessor
 from agent import Agent
 from network import Network
+from control import Control
 from tqdm import tqdm
 import sys
 
@@ -9,6 +10,15 @@ def network(path, folder):
     base.load()
 
     network = Network.gen(n=40, d=4, base=base, folder=folder)
+
+    for a in tqdm(network.agents.values()):
+        a.random_train()
+
+def control(path, folder):
+    base = Agent(path, 0)
+    base.load()
+
+    network = Control.gen(n=40, base=base, folder=folder)
 
     for a in tqdm(network.agents.values()):
         a.random_train()
@@ -43,8 +53,15 @@ def rt(path, img):
 
     print(f"Original Guess: {cnt} \nNew Guess: {cntprime}")
 
-def reinforce_all(folder, img, res):
+def reinforce_network(folder, img, res):
     n = Network(4, folder)
+    res_path = "res.json"
+    n.eval(img, res_path)
+    n.reinforce_all(res_path, img)
+    n.eval(img, res)
+
+def reinforce_control(folder, img, res):
+    n = Control(folder)
     res_path = "res.json"
     n.eval(img, res_path)
     n.reinforce_all(res_path, img)
@@ -54,11 +71,15 @@ def reinforce_all(folder, img, res):
 if __name__ == "__main__":
     if sys.argv[1] == "network":
         network(sys.argv[2], sys.argv[3])
+    if sys.argv[1] == "control":
+        control(sys.argv[2], sys.argv[3])
     if sys.argv[1] == "base":
         base(sys.argv[2])
     if sys.argv[1] == "eval":
         eval(sys.argv[2], sys.argv[3])
     if sys.argv[1] == "rt":
         rt(sys.argv[2], sys.argv[3])
-    if sys.argv[1] == "reinforce":
-        reinforce_all(sys.argv[2], sys.argv[3], sys.argv[4])
+    if sys.argv[1] == "rn":
+        reinforce_network(sys.argv[2], sys.argv[3], sys.argv[4])
+    if sys.argv[1] == "rc":
+        reinforce_control(sys.argv[2], sys.argv[3], sys.argv[4])

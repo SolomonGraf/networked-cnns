@@ -2,7 +2,7 @@ import os, re, json
 from tqdm import tqdm
 from agent import Agent
 
-class Network:
+class Control:
     """__init__
     
     Keyword arguments:
@@ -11,7 +11,7 @@ class Network:
     Return: returns object
     """
 
-    def __init__(self, d: int, folder: str):
+    def __init__(self, folder: str):
         self.agents: dict[int, Agent]= {}
         model_files = [f for f in os.listdir(folder) 
                       if f.endswith('.pth') and re.match(r'model_\d+\.pth', f)]
@@ -34,27 +34,13 @@ class Network:
                 continue
         
         self.size = len(model_files)
-        assert d % 2 == 0
-        self.deg = d
 
     @staticmethod
-    def gen(n, d, base, folder):
+    def gen(n, base, folder):
         for i in tqdm(range(n), desc="Populating Models"):
             base.deepcopy(i, os.path.join(folder, f"model_{i}.pth"))
         
-        return Network(d, folder)
-
-    """get_neighbors
-    
-    Keyword arguments:
-    i -- index of agent
-    Return: indices of neighbors in the network
-    """
-    
-    def get_neighbors(self, i):
-        neighbors = [i + j for j in range(-self.deg//2, self.deg//2 + 1)]
-        neighbors = map(lambda x : (x + self.size) % self.size, neighbors)
-        return neighbors
+        return Control(folder)
     
     def eval(self, img, res_json):
         results = [0] * self.size
@@ -73,7 +59,8 @@ class Network:
         return round(sum(vals)/len(vals))
     
     def reinforce_all(self, res_path, img):
-        avgs = {id: self.get_avg(int(id), res_path) for id in self.agents.keys()}
+        with open(res_path, "r") as f:
+            res = json.load(f)
         for i, a in tqdm(self.agents.items(), desc="Reinforcing"):
-            a.reinforce(img, avgs[i])
+            a.reinforce(img, res[str(i)])
             a.save()
