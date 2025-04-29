@@ -25,7 +25,6 @@ class Agent:
             'optimizer_state_dict': self.optimizer.state_dict(),
         }
         torch.save(state, self.path)
-        print(f"Model saved to {self.path}")
 
     def load(self):
         """Load model and optimizer state from self.path."""
@@ -35,7 +34,6 @@ class Agent:
         state = torch.load(self.path, map_location=self.device)
         self.model.load_state_dict(state['model_state_dict'])
         self.optimizer.load_state_dict(state['optimizer_state_dict'])
-        print(f"Model loaded from {self.path}")
 
     def deepcopy(self, i: int, new_path: str):
         # Create new agent instance with the new path
@@ -130,18 +128,30 @@ class Agent:
         gen.generate_dataset(100)
         self.train(temp_dir, epochs)
 
-    def reinforce(self, image, count, epochs=1):
+    def reinforce(self, image, count):
         """Fine-tunes the model on a single annotated image."""
-        self.model.train()
-        image = transforms.ToTensor()(image).unsqueeze(0).to(self.device)  # Add batch dim
-        count = torch.tensor([count], dtype=torch.float32).to(self.device)
+        # Convert image to tensor
+        image = Image.open(image).convert('L')  # Grayscale
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5], std=[0.5])
+        ])
+        image = transform(image).unsqueeze(0).to(self.device)  # [1, 1, H, W]
         
-        for _ in range(epochs):
-            self.optimizer.zero_grad()
-            output = self.model(image)
-            loss = self.criterion(output.squeeze(), count)
-            loss.backward()
-            self.optimizer.step()
+        # Ensure proper tensor shapes
+        count = torch.tensor(count, dtype=torch.float32, device=self.device)  # Shape []
+        self.model.train()
+        
+        self.optimizer.zero_grad()
+        output = self.model(image)  # Should output shape [] (scalar)
+        
+        # Explicitly reshape if needed
+        if output.dim() > 0:
+            output = output.squeeze()  # Remove all singleton dimensions
+            
+        loss = self.criterion(output, count)  # Both shapes should now match
+        loss.backward()
+        self.optimizer.step()
 
     def eval(self, image_path):
         # 1. Load and preprocess the image

@@ -11,7 +11,7 @@ class JellyBeanGenerator:
         image_size: Tuple[int, int] = (512, 512),
         background_color: Tuple[int, int, int] = (240, 240, 240),
         min_jellybeans: int = 100,
-        max_jellybeans: int = 200,
+        max_jellybeans: int = 500,
         output_dir: str = "jellybean_images"
     ):
         """
@@ -58,9 +58,6 @@ class JellyBeanGenerator:
         # Apply size variation
         bean_width = int(bean_width * (1 + random.uniform(-size_variation, size_variation)))
         bean_height = int(bean_height * (1 + random.uniform(-size_variation, size_variation)))
-        
-        # Rotate slightly for realism
-        rotation = random.uniform(-15, 15)
         
         # Draw main jellybean body (ellipse)
         bbox = [
