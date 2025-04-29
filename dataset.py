@@ -6,10 +6,10 @@ import json
 from PIL import Image
 
 class EllipseDataset(Dataset):
-    def __init__(self, data_path):
-        self.data_path = data_path
-        self.image_files = [f for f in os.listdir(data_path) if f.endswith('.png')]
-        with open(os.path.join(data_path, 'annotations.json'), 'r') as f:
+    def __init__(self, folder):
+        self.folder = folder
+        self.image_files = [f for f in os.listdir(folder) if f.endswith('.png')]
+        with open(os.path.join(folder, 'annotations.json'), 'r') as f:
             self.annotations = json.load(f)
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -20,7 +20,7 @@ class EllipseDataset(Dataset):
         return len(self.image_files)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.data_path, self.image_files[idx])
+        img_path = os.path.join(self.folder, self.image_files[idx])
         image = Image.open(img_path).convert('L')  # Convert to grayscale
         image = self.transform(image)
         count = self.annotations[self.image_files[idx]]

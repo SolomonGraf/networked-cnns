@@ -11,7 +11,7 @@ class Network:
     """
 
     def __init__(self, n, d, base):
-        self.agents = [base.copy(i, os.path.join("models", str(i) + ".pth")) for i in tqdm(range(n), desc="Populating Models")]
+        self.agents = [base.deepcopy(i, os.path.join("models", f"model_{i}.pth")) for i in tqdm(range(n), desc="Populating Models")]
         self.size = n
         assert d % 2 == 0
         self.deg = d
