@@ -1,6 +1,7 @@
 import os, re, json
 from tqdm import tqdm
 from agent import Agent
+from joblib import Parallel, delayed
 
 class Control:
     """__init__
@@ -61,6 +62,30 @@ class Control:
     def reinforce_all(self, res_path, img):
         with open(res_path, "r") as f:
             res = json.load(f)
-        for i, a in tqdm(self.agents.items(), desc="Reinforcing"):
-            a.reinforce(img, res[str(i)])
+            
+        def aux(c, a):
+            a.reinforce(img, c)
             a.save()
+
+        with Parallel(n_jobs=-1) as p:
+            p(
+            delayed(aux) (res[str(i)], a) 
+            for i, a in tqdm(self.agents.items())
+            )
+        
+        for a in self.agents.values():
+            a.load()
+
+    def randomize(self):
+        def aux(a):
+            a.random_train()
+            a.save()
+
+        with Parallel(n_jobs=-1) as p:
+            p(
+            delayed(aux)(a) 
+            for a in tqdm(self.agents.values(), desc="randomizing")
+            )
+        
+        for a in self.agents.values():
+            a.load()

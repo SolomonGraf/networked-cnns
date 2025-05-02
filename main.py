@@ -3,7 +3,7 @@ from network import Network
 from control import Control
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from analysis import analyze
+from analysis import analyze as _analyze
 
 import sys
 
@@ -58,76 +58,52 @@ def reinforce_control(folder, img, res):
     n.reinforce_all(res_path, img)
     n.eval(img, res)
 
-def control_trial(results, base):
+def control_trial(base, init):
     base = Agent(base, 0)
     base.load()
     network_path = "models"
     test_img_path = "test.png"
-
-    rounds = ["eval0.json", "eval1.json", "eval2.json", "eval3.json"]
 
     n = Control.gen(n=40, base=base, folder=network_path)
 
-    for a in tqdm(n.agents.values(), desc="Randomizing Models"):
-        a.random_train()
+    n.randomize()
+    
+    print("Evaluating round 0")
+    n.eval(test_img_path, init)
 
-    n.eval(test_img_path, rounds[0])
-
-    n.reinforce_all(rounds[0], test_img_path)
-    n.eval(test_img_path, rounds[1])
-
-    n.reinforce_all(rounds[1], test_img_path)
-    n.eval(test_img_path, rounds[2])
-
-    n.reinforce_all(rounds[2], test_img_path)
-    n.eval(test_img_path, rounds[3])
-
-    analyze(rounds, results)
-
-def network_trial(results, base):
+def network_trial(base, init):
     base = Agent(base, 0)
     base.load()
     network_path = "models"
     test_img_path = "test.png"
-
-    rounds = ["eval0.json", "eval1.json", "eval2.json", "eval3.json"]
 
     n = Network.gen(n=40, d=4, base=base, folder=network_path)
 
     n.randomize()
     
     print("Evaluating round 0")
-    n.eval(test_img_path, rounds[0])
+    n.eval(test_img_path, init)
 
-    print("Reinforcing round 1")
-    n.reinforce_all(rounds[0], test_img_path)
-    print("Evaluating round 1")
-    n.eval(test_img_path, rounds[1])
-
-    print("Reinforcing round 2")
-    n.reinforce_all(rounds[1], test_img_path)
-    print("Evaluating round 2")
-    n.eval(test_img_path, rounds[2])
-
-    print("Reinforcing round 3")
-    n.reinforce_all(rounds[2], test_img_path)
-    print("Evaluating round 3_")
-    n.eval(test_img_path, rounds[3])
-
-    analyze(rounds, results)
+def analyze(results):
+    rounds = ["eval0.json", "eval1.json", "eval2.json", "eval3.json"]
+    _analyze(rounds, results)
 
 if __name__ == "__main__":
     if sys.argv[1] == "base":
         base(sys.argv[2])
-    if sys.argv[1] == "network":
+    elif sys.argv[1] == "network":
         network(sys.argv[2], sys.argv[3])
-    if sys.argv[1] == "control":
+    elif sys.argv[1] == "control":
         control(sys.argv[2], sys.argv[3])
-    if sys.argv[1] == "eval":
+    elif sys.argv[1] == "eval":
         eval(sys.argv[2], sys.argv[3])
-    if sys.argv[1] == "rn":
+    elif sys.argv[1] == "rn":
         reinforce_network(sys.argv[2], sys.argv[3], sys.argv[4])
-    if sys.argv[1] == "rc":
+    elif sys.argv[1] == "rc":
         reinforce_control(sys.argv[2], sys.argv[3], sys.argv[4])
-    if sys.argv[1] == "nt":
+    elif sys.argv[1] == "nt":
         network_trial(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == "ct":
+        control_trial(sys.argv[2], sys.argv[3])
+    elif sys.argv[1] == "analyze":
+        analyze(sys.argv[2])

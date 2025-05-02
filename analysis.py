@@ -7,7 +7,7 @@ def load_file(path):
     return res
 
 def mad(res):
-    sum([abs(v - 345) for v in list(res.values())])/len(res.keys())
+    return sum([abs(v - 345) for v in list(res.values())])/len(res.keys())
 
 def analyze(rounds, output):
     
