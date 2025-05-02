@@ -7,6 +7,7 @@ from PIL import Image
 from cnn import EllipseCounterCNN
 from preprocessor import Preprocessor
 import shutil
+from tqdm import tqdm
 
 class Agent:
     def __init__(self, path: str, id: int):
@@ -102,7 +103,7 @@ class Agent:
         patience = 2
         best_loss = float('inf')
 
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs), desc="Training"):
             self.train_epoch(train_loader)
             val_loss = self.validate(test_loader)
             
