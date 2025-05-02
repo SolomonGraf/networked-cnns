@@ -2,7 +2,6 @@ from PIL import Image, ImageDraw
 import random
 import os
 from typing import Tuple, Optional
-from tqdm import tqdm
 import json
 
 class JellyBeanGenerator:
@@ -140,14 +139,12 @@ class JellyBeanGenerator:
         annotation_fp = os.path.join(self.output_dir, "annotations.json")
         annotations = dict()
         
-        print("Generating positive images")
-        for i in tqdm(range(80 * num_images // 100)):
+        for i in range(80 * num_images // 100):
             filename = f"{prefix}_{i:03d}.png"
             _, count = self.generate_image(filename=filename)
             annotations[filename] = count
 
-        print("Generative negative images")
-        for i in tqdm(range(20 * num_images // 100)):
+        for i in range(20 * num_images // 100):
             filename = f"{prefix}_{(i + (80 * num_images // 100)):03d}.png"
             _, count = self.generate_image(num_jellybeans=0, filename=filename)
             annotations[filename] = count
@@ -176,4 +173,3 @@ if __name__ == "__main__":
 
     # Generate full dataset (100 images)
     generator.generate_dataset(1000)
-    print("Generated 1000 jellybean images with annotations")

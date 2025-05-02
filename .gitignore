@@ -1,5 +1,5 @@
 jellybeans_dataset/*
 random_train/*
-temp_random_data/*
+temp_random_data_*/*
 __pycache__/
 *.pth

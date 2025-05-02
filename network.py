@@ -1,6 +1,7 @@
 import os, re, json
 from tqdm import tqdm
 from agent import Agent
+from joblib import Parallel, delayed
 
 class Network:
     """__init__
@@ -74,6 +75,13 @@ class Network:
     
     def reinforce_all(self, res_path, img):
         avgs = {id: self.get_avg(int(id), res_path) for id in self.agents.keys()}
-        for i, a in tqdm(self.agents.items(), desc="Reinforcing"):
-            a.reinforce(img, avgs[i])
+
+        def aux(c, a):
+            a.reinforce(img, c)
             a.save()
+
+        with Parallel(n_jobs=-1) as p:
+            p(
+            delayed(aux) (avgs[i], a) 
+            for i, a in tqdm(self.agents.items())
+            )

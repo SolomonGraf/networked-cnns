@@ -3,16 +3,21 @@ from agent import Agent
 from network import Network
 from control import Control
 from tqdm import tqdm
+from joblib import Parallel, delayed
+
 import sys
 
-def network(path, folder):
+def network(path, folder, n_jobs=-1):  # n_jobs=-1 uses all available CPUs
     base = Agent(path, 0)
     base.load()
 
     network = Network.gen(n=40, d=4, base=base, folder=folder)
 
-    for a in tqdm(network.agents.values()):
-        a.random_train()
+    # Parallel execution with tqdm progress bar
+    Parallel(n_jobs=n_jobs)(
+        delayed(lambda a: a.random_train()) (a) 
+        for a in tqdm(network.agents.values())
+    )
 
 def control(path, folder):
     base = Agent(path, 0)
@@ -32,7 +37,7 @@ def base(path):
     train_loader, test_loader = Preprocessor.get_dataloaders(image_folder, batch_size)
     base = Agent(path, 0)
 
-    base.train(train_loader, test_loader)
+    base.train("jellybeans_dataset")
     print("CNN estimates test.png at {0}. Real value is 345".format(base.eval("test.png")))
 
     base.save()

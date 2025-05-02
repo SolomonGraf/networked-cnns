@@ -1,15 +1,15 @@
 import torch, os, copy
 import torch.nn as nn
-from tqdm import tqdm
 import torch.optim as optim
 import torchvision.transforms as transforms
 from image_generator import JellyBeanGenerator
 from PIL import Image
 from cnn import EllipseCounterCNN
 from preprocessor import Preprocessor
+import shutil
 
 class Agent:
-    def __init__(self, path, id):
+    def __init__(self, path: str, id: int):
         self.id = id
         self.path = path
         self.model = EllipseCounterCNN()
@@ -61,7 +61,7 @@ class Agent:
         self.model.train()
         running_loss = 0.0
         
-        for images, counts in tqdm(train_loader, desc="Training"):
+        for images, counts in train_loader:
             images = images.to(self.device)
             counts = counts.to(self.device).unsqueeze(1)
             
@@ -83,7 +83,7 @@ class Agent:
         running_loss = 0.0
         
         with torch.no_grad():
-            for images, counts in tqdm(test_loader, desc="Validating"):
+            for images, counts in test_loader:
                 images = images.to(self.device)
                 counts = counts.to(self.device).unsqueeze(1)
                 
@@ -103,13 +103,8 @@ class Agent:
         best_loss = float('inf')
 
         for epoch in range(epochs):
-            print(f"\nEpoch {epoch + 1}/{epochs}")
-            
-            train_loss = self.train_epoch(train_loader)
+            self.train_epoch(train_loader)
             val_loss = self.validate(test_loader)
-            
-            
-            print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
             
             # Early stopping
             if val_loss < best_loss:
@@ -119,14 +114,14 @@ class Agent:
             else:
                 counter += 1
                 if counter >= patience:
-                    (f"Early stopping after {epoch + 1} epochs")
                     break
 
     def random_train(self, epochs=5):
-        temp_dir = "temp_random_data"
+        temp_dir = "temp_random_data_" + str(self.id)
         gen = JellyBeanGenerator(output_dir=temp_dir)
         gen.generate_dataset(100)
         self.train(temp_dir, epochs)
+        shutil.rmtree(temp_dir)
 
     def reinforce(self, image, count):
         """Fine-tunes the model on a single annotated image."""
