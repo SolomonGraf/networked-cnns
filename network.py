@@ -39,7 +39,7 @@ class Network:
         self.deg = d
 
     @staticmethod
-    def gen(n, d, base, folder):
+    def gen(n, d, base: Agent, folder):
         for i in tqdm(range(n), desc="Populating Models"):
             base.deepcopy(i, os.path.join(folder, f"model_{i}.pth"))
         
@@ -85,3 +85,20 @@ class Network:
             delayed(aux) (avgs[i], a) 
             for i, a in tqdm(self.agents.items())
             )
+        
+        for a in self.agents.values():
+            a.load()
+
+    def randomize(self):
+        def aux(a):
+            a.random_train()
+            a.save()
+
+        with Parallel(n_jobs=-1) as p:
+            p(
+            delayed(aux)(a) 
+            for a in tqdm(self.agents.values(), desc="randomizing")
+            )
+        
+        for a in self.agents.values():
+            a.load()
